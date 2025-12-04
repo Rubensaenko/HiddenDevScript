@@ -11,6 +11,8 @@ local HiddenDev = {}
 --I limited myself to a time of 3 hours to make this 
 --script as a commission.
 
+-- for activate the spell its "X" and click gauche or right
+
 -- Variables
 local spell_State = {}
 local spell_Cooldown = {}
