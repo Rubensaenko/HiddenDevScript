@@ -2,16 +2,14 @@ local HiddenDev = {}
 
 -- The planet moves to the mouse cursor's location, 
 --and if there are enemies in the area, the player can
---either left-click to activate an attack or right-click
+--either left-click to activate an attack (you can charge it) or right-click for a combo
 --to perform another attack. I added an extra attack on 
 --the right-click to allow players to perform a really 
 --cool combo. Of course, I didn't push the VFX, animation,
 --sound, or even the movements at all, but I can create a 
 --much more complex script with math if needed. However, 
 --I limited myself to a time of 3 hours to make this 
---script as a commission.
-
--- for activate the spell its "X" and click gauche or right
+--because its is a commision.
 
 -- Variables
 local spell_State = {}
@@ -189,11 +187,10 @@ function HiddenDev:Applier (player,mousetarget,spawnpoint,planet,mousepart)
 		return
 	end
 	spell_Cooldown[player.UserId] = true
-	print("Appllier")
+
 	local projectil = planet.TablePoo.Part
 	planet.TablePoo.Orbite:Disconnect()
 	local ConnectRunservice
-	print("Appllier1")
 	 ConnectRunservice = RunService.Heartbeat:Connect(function()
 		local projectil = planet.TablePoo.Part
 		projectil.CFrame = projectil.CFrame:Lerp(mousetarget,0.10)
@@ -214,34 +211,31 @@ function HiddenDev:CreatZone(player,mousetarget,planet)
 	zone.Parent = workspace
 	
 	local ennemie = {}
-	for i , v in pairs(game.Players:GetPlayers()) do
-		local humRoot = v.Character:FindFirstChild("HumanoidRootPart")
-		if humRoot then
-			local distance = (humRoot.Position - mousetarget.Position).Magnitude
-			if distance <= 10 then
-				table.insert(ennemie,v)
-			end
-		end
-	end
-	print(ennemie)
+	local rayon = math.pi * zone.Size.Z / 2 * zone.Size.Z / 2 
+	
 	zone.Touched:Connect(function(hit)
 		if hit.Parent:FindFirstChild("Humanoid") and hit.Parent:FindFirstChild("HumanoidRootPart") then
+			if hit.Parent == player.Character then
+				return
+			end
 			if not table.find(ennemie,hit.Parent) then
-				print("s")
-				print(hit.Parent)
 				table.insert(ennemie,hit.Parent)
+				print(ennemie)
 			end
 		end
 	end)
 	
-	for _, Ennemies in pairs(ennemie) do
-		local hum 
+	task.wait(0.2)
+	for o, Ennemies in pairs(ennemie) do 
+		print("BAHAHAHAHAHHAHAHAHA")
+		local hum
+		
 		if Ennemies:IsA("Player") then
 			hum = Ennemies.Character:FindFirstChild("Humanoid")
 		else
 			hum = Ennemies:FindFirstChild("Humanoid")
 		end
-		print(hum)
+
 		if hum then
 			-- Add effect to the enemy by the effect module or something
 			-- like Stun enenmy 
@@ -250,20 +244,24 @@ function HiddenDev:CreatZone(player,mousetarget,planet)
 			local baseJumpPower = hum.JumpPower
 			hum.WalkSpeed = 0
 			hum.JumpPower = 0
+
 			task.delay(config.AstralCollapse.Sequence.Phase1.Params.Duration,function()
 				hum.WalkSpeed = basespeed
 				hum.JumpPower = baseJumpPower
 			end)
 		end
 	end
-	task.wait(0.20)
+	if table.getn(ennemie) == 0 then
+		print("Aucun ennemie dans la zone")
+		HiddenDev:Stopped(player,planet,zone)
+		return
+	end
 	HiddenDev:ConnectEvent(player,planet,zone,ennemie)
 	ennemie = {}
 end
 
 function HiddenDev:ConnectEvent(player,planet,zone,ennemie)
 	local actionPlayer
-	
 	ActionRemote:FireClient(player,"Good")
 	print("good ce refias ?")
 	local starttime = tick()
@@ -279,14 +277,35 @@ function HiddenDev:ConnectEvent(player,planet,zone,ennemie)
 		end
 		task.wait()
 	end
+	local index = 0
 	if actionPlayer == "Left" then
-		HiddenDev:Impulsion(ennemie,zone,player,planet)
+		HiddenDev:Impulsion(ennemie,zone,player,planet,index)
 		print("Left")
 		return
 	elseif actionPlayer == "Right" then
 		HiddenDev:Repuslion(ennemie,zone,player,planet)
 		print("Right")
 		return
+	elseif actionPlayer == "LeftCharging" then
+		local startime = tick()
+		task.spawn(function()
+			while actionPlayer == "LeftCharging" do
+				task.wait(0.1)
+				index += 0.4
+				local twz = TweenService:Create(zone,TweenInfo.new(0.1),{Size = zone.Size + Vector3.new(index,index,index)})
+				twz:Play()
+				twz.Completed:Wait()
+				print(index)
+
+				if index >= 10 then
+					HiddenDev:Stopped(player,planet,zone)
+					index = 0
+				end
+			end
+			if actionPlayer == "Left" then
+				HiddenDev:Impulsion(ennemie,zone,player,planet,index)
+			end
+		end)
 	end
 end
 
@@ -367,23 +386,33 @@ function HiddenDev:Repuslion(ennemie,zone,player,planet)
 
 			local tw = TweenService:Create(
 				humRoot,
-				TweenInfo.new(0.5, Enum.EasingStyle.Linear, Enum.EasingDirection.Out),
+				TweenInfo.new(0.1, Enum.EasingStyle.Linear, Enum.EasingDirection.Out),
 				{ CFrame = cf }
 			)
 
 			tw:Play()
 			tw.Completed:Wait()
+			local explosion = Instance.new("Explosion")
+			explosion.Position = worldPos
+			explosion.BlastRadius = 100
+			explosion.BlastPressure = 100000
+			explosion.DestroyJointRadiusPercent = 0
+			explosion.Parent = workspace
+			humRoot.Parent:FindFirstChild("Humanoid"):TakeDamage(10)
+			print("Explosion")
 		end
 
-
+			
 	
 		print("Passe sa ")
 		for _, Ennemies in pairs(ennemie) do
 			local humRoot 
 			if Ennemies:IsA("Player") then
 				humRoot = Ennemies.Character:FindFirstChild("HumanoidRootPart")
+				humRoot:ApplyImpulse(humRoot.CFrame.LookVector * -1000) 
 			else
 				humRoot = Ennemies:FindFirstChild("HumanoidRootPart")
+				humRoot:ApplyImpulse(humRoot.CFrame.LookVector * -1000) 
 			end	
 			local AP = Instance.new("AlignPosition")
 			AP.Parent = humRoot
@@ -408,31 +437,45 @@ function HiddenDev:Repuslion(ennemie,zone,player,planet)
 		
 	end
 end
-function HiddenDev:Impulsion(ennemie,zone,player,planet)
+function HiddenDev:Impulsion(ennemie,zone,player,planet,index)
 	local centreZone = zone.Position
 	local radius = zone.Size.X/2
+	local humRoot 
+	
 	for _, Ennemies in pairs(ennemie) do
-		local humRoot 
 		if Ennemies:IsA("Player") then
 			humRoot = Ennemies.Character:FindFirstChild("HumanoidRootPart")
 		else
 			humRoot = Ennemies:FindFirstChild("HumanoidRootPart")
+			print(humRoot)
 		end	
-		humRoot:ApplyImpulse(humRoot.CFrame.LookVector * -1000) 
+		if index > 10 then
+			local particule = game.ReplicatedStorage.Attachment:Clone()
+			particule.Parent = zone
+		end
+		if index > 5 then
+			local particule = game.ReplicatedStorage.Attachment:Clone()
+			particule.Parent = zone
+			particule.ParticleEmitter:Emit(100)
+		end
+		humRoot:ApplyImpulse(humRoot.CFrame.LookVector * -1000 * index) 
+		local hum = humRoot.Parent:FindFirstChild("Humanoid")
+		hum:TakeDamage(20)
 		-- here we can add effect, animation,damage by a fonction or module to the enenmy
 		-- or call a another fonction for more detail 
 		-- and all of that is configurable in the config module
-		
-		task.delay(config.AstralCollapse.Sequence.Phase2.Params.Duration,function()
+		task.wait()
 
-			humRoot.AssemblyLinearVelocity = Vector3.new(0,0,0)
-			spell_Cooldown[player.UserId] = nil
-			print(player)
-			print(planet)
-			print(zone)
-			HiddenDev:Stopped(player,planet,zone)
-		end)
 	end
+	task.delay(config.AstralCollapse.Sequence.Phase2.Params.Duration,function()
+
+		humRoot.AssemblyLinearVelocity = Vector3.new(0,0,0)
+		spell_Cooldown[player.UserId] = nil
+		print(player)
+		print(planet)
+		print(zone)
+		HiddenDev:Stopped(player,planet,zone)
+	end)
 end
 
 
